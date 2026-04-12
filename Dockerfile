@@ -6,7 +6,7 @@ FROM node:lts-trixie-slim AS base
 ARG USER_UID=1000
 ARG USER_GID=1000
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates gosu curl git wget ripgrep python3 python3-pip \
+ && apt-get install -y --no-install-recommends ca-certificates gosu curl git wget ripgrep python3 python3-venv \
  && mkdir -p -m 755 /etc/apt/keyrings \
  && wget -nv -O/etc/apt/keyrings/githubcli-archive-keyring.gpg https://cli.github.com/packages/githubcli-archive-keyring.gpg \
  && chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
@@ -17,10 +17,12 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/* \
  && corepack enable
 
-# Hermes CLI (spawned by Paperclip's hermes_local adapter)
-RUN python3 -m pip install --break-system-packages --upgrade pip setuptools wheel \
- && python3 -m pip install --break-system-packages \
-    "hermes-agent[cli,pty,mcp,cron,honcho] @ git+https://github.com/NousResearch/hermes-agent.git"
+# Hermes CLI (venv: avoids Debian pip "uninstall-no-record-file" on --break-system-packages)
+RUN python3 -m venv /opt/hermes-venv \
+ && /opt/hermes-venv/bin/pip install --upgrade pip setuptools wheel \
+ && /opt/hermes-venv/bin/pip install \
+    "hermes-agent[cli,pty,mcp,cron,honcho] @ git+https://github.com/NousResearch/hermes-agent.git" \
+ && ln -sf /opt/hermes-venv/bin/hermes /usr/local/bin/hermes
 
 RUN usermod -u $USER_UID --non-unique node \
  && groupmod -g $USER_GID --non-unique node \
