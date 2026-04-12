@@ -1,0 +1,4 @@
+# Build clones paperclip from GitHub; keep local context tiny.
+.git
+*.md
+.DS_Store
