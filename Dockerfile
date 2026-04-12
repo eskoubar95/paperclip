@@ -59,7 +59,7 @@ RUN npm install --global --omit=dev @anthropic-ai/claude-code@latest @openai/cod
  && mkdir -p /paperclip \
  && chown node:node /paperclip
 
-COPY --from=upstream /src/scripts/docker-entrypoint.sh /usr/local/bin/
+COPY railway-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 ENV NODE_ENV=production \
