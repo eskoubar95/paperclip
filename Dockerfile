@@ -17,12 +17,16 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/* \
  && corepack enable
 
-# Hermes CLI (venv: avoids Debian pip "uninstall-no-record-file" on --break-system-packages)
+# Hermes CLI — isolated venv (never pip install onto Debian system python; that caused uninstall-no-record-file on Railway).
+# Minimal extras: terminal/file-style tools without heavy optional stacks. Pin tag for reproducible builds.
+# Local quick check (saves waiting on full Paperclip build): docker build --target base -t pc-base .
+ARG HERMES_GIT_REF=v0.8.0
 RUN python3 -m venv /opt/hermes-venv \
- && /opt/hermes-venv/bin/pip install --upgrade pip setuptools wheel \
- && /opt/hermes-venv/bin/pip install \
-    "hermes-agent[cli,pty,mcp,cron,honcho] @ git+https://github.com/NousResearch/hermes-agent.git" \
- && ln -sf /opt/hermes-venv/bin/hermes /usr/local/bin/hermes
+ && /opt/hermes-venv/bin/pip install --no-cache-dir --upgrade pip setuptools wheel \
+ && /opt/hermes-venv/bin/pip install --no-cache-dir \
+    "hermes-agent[cli,pty,mcp,cron] @ git+https://github.com/NousResearch/hermes-agent.git@${HERMES_GIT_REF}" \
+ && ln -sf /opt/hermes-venv/bin/hermes /usr/local/bin/hermes \
+ && test -x /usr/local/bin/hermes
 
 RUN usermod -u $USER_UID --non-unique node \
  && groupmod -g $USER_GID --non-unique node \
