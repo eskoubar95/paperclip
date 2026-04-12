@@ -40,6 +40,10 @@ RUN git clone --depth 1 --branch "${PAPERCLIP_REF}" https://github.com/paperclip
 FROM base AS deps
 WORKDIR /app
 COPY --from=upstream /src /app
+# Curated OpenRouter models in the Model dropdown + getConfigSchema (provider / max turns).
+COPY server-patches/hermes-openrouter-models.ts /app/server/src/adapters/hermes-openrouter-models.ts
+COPY server-patches/apply-hermes-registry-patch.mjs /tmp/apply-hermes-registry-patch.mjs
+RUN node /tmp/apply-hermes-registry-patch.mjs
 RUN pnpm install --frozen-lockfile
 
 FROM base AS build
