@@ -4,6 +4,37 @@
  */
 
 import type { AdapterConfigSchema, AdapterModel } from "@paperclipai/adapter-utils";
+import { agentConfigurationDoc as hermesAgentConfigurationDocBase } from "hermes-paperclip-adapter";
+
+/**
+ * Appended to upstream Hermes adapter docs so the model stops minting JWTs with
+ * PAPERCLIP_AGENT_JWT_SECRET (wrong + unsafe) and uses the agent API key instead.
+ */
+const HERMES_PAPERCLIP_HTTP_API_MD = `
+
+## Paperclip HTTP API (curl from Hermes terminal)
+
+When you call this Paperclip instance over HTTP (\`/api/...\`):
+
+- **Authentication:** use only \`Authorization: Bearer $PAPERCLIP_API_KEY\`. The key is the agent API key (\`pcp_…\`) — set in Paperclip and passed into the Hermes shell via \`terminal.env_passthrough\` in \`~/.hermes/config.yaml\`.
+- **Do not** create JWTs, use HMAC, read \`PAPERCLIP_AGENT_JWT_SECRET\`, or run Node/\`crypto\` to sign tokens. That secret is for the server, not for agent shell scripts.
+- **Base URL:** \`$PAPERCLIP_API_URL\` (no trailing slash before paths; build URLs as \`"$PAPERCLIP_API_URL/api/..."\`).
+- **IDs:** \`$PAPERCLIP_AGENT_ID\`, \`$PAPERCLIP_COMPANY_ID\`, and \`$PAPERCLIP_RUN_ID\` are available in the same environment when configured.
+
+Example (issues assigned to this agent):
+
+\`\`\`bash
+curl -sS -H "Authorization: Bearer $PAPERCLIP_API_KEY" \\
+  "$PAPERCLIP_API_URL/api/companies/$PAPERCLIP_COMPANY_ID/issues?assigneeAgentId=$PAPERCLIP_AGENT_ID"
+\`\`\`
+
+If piping is blocked by policy, write the body to a file (\`curl ... -o /tmp/pc.json\`) and parse the file.
+
+If you use a custom \`promptTemplate\`, keep the same rules: **Bearer + \`$PAPERCLIP_API_KEY\` only** for all \`/api/\` requests.
+`;
+
+/** Full markdown shown in the Paperclip UI for Hermes agents (upstream + Railway auth). */
+export const hermesAgentConfigurationDoc = hermesAgentConfigurationDocBase + HERMES_PAPERCLIP_HTTP_API_MD;
 
 /** OpenRouter model ids + short labels for the Paperclip Model dropdown. */
 export const HERMES_OPENROUTER_MODELS: AdapterModel[] = [

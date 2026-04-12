@@ -25,6 +25,8 @@ fi
 # Hermes (HOME=/paperclip): Paperclip spawner `hermes` uden TTY. Uden denne fil kan
 # (a) approvals/Tirith afvise `curl | python3` fra default-prompten, og
 # (b) terminal-værktøjet strippe PAPERCLIP_* så curl mod API får 401.
+# Passthrough lister bevidst IKKE PAPERCLIP_AGENT_JWT_SECRET — agenter skal bruge
+# PAPERCLIP_API_KEY (Bearer), ikke minte JWT med server-secret.
 # Opret kun hvis der ikke allerede er en config — så `hermes model` m.m. ikke overskrives.
 if [ ! -f /paperclip/.hermes/config.yaml ]; then
   mkdir -p /paperclip/.hermes

@@ -45,6 +45,8 @@ COPY server-patches/hermes-openrouter-models.ts /app/server/src/adapters/hermes-
 COPY server-patches/apply-hermes-registry-patch.mjs /tmp/apply-hermes-registry-patch.mjs
 RUN node /tmp/apply-hermes-registry-patch.mjs
 RUN pnpm install --frozen-lockfile
+COPY server-patches/apply-hermes-execute-patches.mjs /tmp/apply-hermes-execute-patches.mjs
+RUN node /tmp/apply-hermes-execute-patches.mjs
 
 FROM base AS build
 WORKDIR /app

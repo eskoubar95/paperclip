@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
  * Patches server/src/adapters/registry.ts after cloning upstream Paperclip:
- * - Import HERMES_OPENROUTER_MODELS + getHermesLocalConfigSchema
- * - Wire hermes_local adapter models + getConfigSchema
+ * - Import HERMES_OPENROUTER_MODELS, getHermesLocalConfigSchema, hermesAgentConfigurationDoc
+ * - Wire hermes_local adapter models + getConfigSchema + extended agent docs (API key auth)
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -16,10 +16,7 @@ const importOld = `import {
   models as hermesModels,
 } from "hermes-paperclip-adapter";`;
 
-const importNew = `import {
-  agentConfigurationDoc as hermesAgentConfigurationDoc,
-} from "hermes-paperclip-adapter";
-import { HERMES_OPENROUTER_MODELS, getHermesLocalConfigSchema } from "./hermes-openrouter-models.js";`;
+const importNew = `import { HERMES_OPENROUTER_MODELS, getHermesLocalConfigSchema, hermesAgentConfigurationDoc } from "./hermes-openrouter-models.js";`;
 
 if (!text.includes(importOld)) {
   console.error("apply-hermes-registry-patch: expected hermes import block not found — update patch script for upstream registry.ts");

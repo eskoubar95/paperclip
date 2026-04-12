@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Apply Hermes headless fixes on Railway's /paperclip volume (Hermes HOME).
+# Do not add PAPERCLIP_AGENT_JWT_SECRET to env_passthrough — use PAPERCLIP_API_KEY + Bearer only.
 # Run:  railway ssh --service paperclip < scripts/ensure-hermes-volume-config.sh
 # Or:   railway ssh --service paperclip 'bash -s' < scripts/ensure-hermes-volume-config.sh
 set -euo pipefail
