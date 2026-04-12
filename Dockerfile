@@ -72,7 +72,6 @@ ENV NODE_ENV=production \
  OPENCODE_ALLOW_ALL_MODELS=true \
  PATH=/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin
 
-VOLUME ["/paperclip"]
 EXPOSE 3100
 
 ENTRYPOINT ["docker-entrypoint.sh"]
