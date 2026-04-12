@@ -20,7 +20,7 @@ RUN apt-get update \
 # Hermes CLI — isolated venv (never pip install onto Debian system python; that caused uninstall-no-record-file on Railway).
 # Minimal extras: terminal/file-style tools without heavy optional stacks. Pin tag for reproducible builds.
 # Local quick check (saves waiting on full Paperclip build): docker build --target base -t pc-base .
-ARG HERMES_GIT_REF=v0.8.0
+ARG HERMES_GIT_REF=v2026.4.8
 RUN python3 -m venv /opt/hermes-venv \
  && /opt/hermes-venv/bin/pip install --no-cache-dir --upgrade pip setuptools wheel \
  && /opt/hermes-venv/bin/pip install --no-cache-dir \
