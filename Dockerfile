@@ -6,7 +6,7 @@ FROM node:lts-trixie-slim AS base
 ARG USER_UID=1000
 ARG USER_GID=1000
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates gosu curl git wget ripgrep python3 python3-venv \
+ && apt-get install -y --no-install-recommends ca-certificates gosu curl git wget ripgrep python3 python3-venv jq \
  && mkdir -p -m 755 /etc/apt/keyrings \
  && wget -nv -O/etc/apt/keyrings/githubcli-archive-keyring.gpg https://cli.github.com/packages/githubcli-archive-keyring.gpg \
  && chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
@@ -45,6 +45,7 @@ COPY server-patches/hermes-openrouter-models.ts /app/server/src/adapters/hermes-
 COPY server-patches/apply-hermes-registry-patch.mjs /tmp/apply-hermes-registry-patch.mjs
 RUN node /tmp/apply-hermes-registry-patch.mjs
 RUN pnpm install --frozen-lockfile
+COPY server-patches/hermes-default-prompt-inner.txt /tmp/hermes-default-prompt-inner.txt
 COPY server-patches/apply-hermes-execute-patches.mjs /tmp/apply-hermes-execute-patches.mjs
 RUN node /tmp/apply-hermes-execute-patches.mjs
 

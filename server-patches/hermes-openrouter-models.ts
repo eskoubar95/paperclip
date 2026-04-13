@@ -28,7 +28,7 @@ curl -sS -H "Authorization: Bearer $PAPERCLIP_API_KEY" \\
   "$PAPERCLIP_API_URL/api/companies/$PAPERCLIP_COMPANY_ID/issues?assigneeAgentId=$PAPERCLIP_AGENT_ID"
 \`\`\`
 
-If piping is blocked by policy, write the body to a file (\`curl ... -o /tmp/pc.json\`) and parse the file.
+If piping is blocked by policy, write the body to a file (\`curl ... -o /tmp/pc.json\`) and parse with \`jq\` (in this image) or \`python3 -m json.tool /tmp/pc.json\`. Long \`python3 -c\` one-liners are easy for models to corrupt — prefer \`jq\` for arrays.
 
 If you use a custom \`promptTemplate\`, keep the same rules: **Bearer + \`$PAPERCLIP_API_KEY\` only** for all \`/api/\` requests.
 `;
