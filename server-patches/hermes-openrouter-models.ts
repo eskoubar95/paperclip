@@ -20,6 +20,7 @@ When you call this Paperclip instance over HTTP (\`/api/...\`):
 - **Do not** create JWTs, use HMAC, read \`PAPERCLIP_AGENT_JWT_SECRET\`, or run Node/\`crypto\` to sign tokens. That secret is for the server, not for agent shell scripts.
 - **Base URL:** \`$PAPERCLIP_API_URL\` (no trailing slash before paths; build URLs as \`"$PAPERCLIP_API_URL/api/..."\`).
 - **IDs:** \`$PAPERCLIP_AGENT_ID\`, \`$PAPERCLIP_COMPANY_ID\`, and \`$PAPERCLIP_RUN_ID\` are available in the same environment when configured.
+- **Mutations (PATCH/POST on \`/api/issues/...\`):** agents using an API key must also send \`-H "x-paperclip-run-id: $PAPERCLIP_RUN_ID"\` on every such request (GET list/read needs only Bearer). Issue comments expect JSON field \`body\` (not \`content\`).
 
 Example (issues assigned to this agent):
 
@@ -30,7 +31,7 @@ curl -sS -H "Authorization: Bearer $PAPERCLIP_API_KEY" \\
 
 If piping is blocked by policy, write the body to a file (\`curl ... -o /tmp/pc.json\`) and parse with \`jq\` (in this image) or \`python3 -m json.tool /tmp/pc.json\`. Long \`python3 -c\` one-liners are easy for models to corrupt — prefer \`jq\` for arrays.
 
-If you use a custom \`promptTemplate\`, keep the same rules: **Bearer + \`$PAPERCLIP_API_KEY\` only** for all \`/api/\` requests.
+If you use a custom \`promptTemplate\`, keep the same rules: **Bearer + \`$PAPERCLIP_API_KEY\`** on all \`/api/\` requests, plus **\`x-paperclip-run-id: $PAPERCLIP_RUN_ID\`** on agent issue mutations.
 `;
 
 /** Full markdown shown in the Paperclip UI for Hermes agents (upstream + Railway auth). */
