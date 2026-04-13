@@ -20,7 +20,10 @@ function loadPromptInner() {
     console.error("apply-hermes-execute-patches: missing", innerPath);
     process.exit(1);
   }
-  return fs.readFileSync(innerPath, "utf8").replace(/\r\n/g, "\n").trimEnd();
+  let s = fs.readFileSync(innerPath, "utf8").replace(/\r\n/g, "\n").trimEnd();
+  // execute.js uses `const DEFAULT_PROMPT_TEMPLATE = `...`;` — unescaped ` breaks the module.
+  s = s.replace(/\\/g, "\\\\").replace(/`/g, "\\`").replace(/\$\{/g, "\\${");
+  return s;
 }
 
 function findExecuteJs() {
