@@ -32,6 +32,10 @@ curl -sS -H "Authorization: Bearer $PAPERCLIP_API_KEY" \\
 If piping is blocked by policy, write the body to a file (\`curl ... -o /tmp/pc.json\`) and parse with \`jq\` (in this image) or \`python3 -m json.tool /tmp/pc.json\`. Long \`python3 -c\` one-liners are easy for models to corrupt — prefer \`jq\` for arrays.
 
 If you use a custom \`promptTemplate\`, keep the same rules: **Bearer + \`$PAPERCLIP_API_KEY\`** on all \`/api/\` requests, plus **\`x-paperclip-run-id: $PAPERCLIP_RUN_ID\`** on agent issue mutations.
+
+## Hermes toolsets (\`-t\` / \`toolsets\` in adapter config)
+
+Pass a **comma-separated** list of Hermes toolset names (see \`hermes chat --help\` and \`toolsets.py\` in Hermes). Special value **\`all\`** enables every registered toolset. **\`hermes-cli\`** is the bundled “full interactive CLI” set (terminal, file, web, browser, vision, skills, code execution, cronjob, etc.). MCP tools need \`mcp\` extra + \`mcp_servers\` in \`~/.hermes/config.yaml\`; names like \`mcp\`/\`creative\`/\`productivity\` in some docs are categories or plugins — use valid toolset names from Hermes or \`all\`.
 `;
 
 /** Full markdown shown in the Paperclip UI for Hermes agents (upstream + Railway auth). */
@@ -55,8 +59,8 @@ export const HERMES_OPENROUTER_MODELS: AdapterModel[] = [
 ];
 
 /**
- * Extra adapter fields (provider, max turns). Model stays on the main Paperclip
- * Model dropdown — we intentionally omit `model` here to avoid duplicate fields.
+ * Extra adapter fields (provider, toolsets, max turns). Model stays on the main
+ * Paperclip Model dropdown — we intentionally omit `model` here to avoid duplicate fields.
  */
 export function getHermesLocalConfigSchema(): AdapterConfigSchema {
   return {
@@ -81,6 +85,14 @@ export function getHermesLocalConfigSchema(): AdapterConfigSchema {
           { label: "Hugging Face", value: "huggingface" },
           { label: "Kilo Code", value: "kilocode" },
         ],
+      },
+      {
+        key: "toolsets",
+        label: "Hermes toolsets",
+        type: "text",
+        default: "hermes-cli",
+        hint:
+          "Comma-separated toolsets passed to Hermes as -t (e.g. terminal,file,web,browser,code_execution,vision). Default hermes-cli = Hermes’ full standard CLI bundle. Use all to enable every registered toolset (widest surface). MCP servers need mcp in pip + mcp_servers in ~/.hermes/config.yaml.",
       },
       {
         key: "maxTurnsPerRun",
