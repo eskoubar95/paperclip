@@ -6,6 +6,8 @@
  * 3) Unwrap Paperclip secret env shape { value } when merging into Hermes env.
  * 4) Map ctx.authToken → PAPERCLIP_API_KEY when the key is still unset (Paperclip JWT for API calls).
  * 5) delete env.PAPERCLIP_AGENT_JWT_SECRET before spawning Hermes.
+ * 6) Extend parseHermesOutput: read paperclip_model line (from patched Hermes CLI) for actual model id;
+ *    keep token/cost regexes compatible with quiet-mode footer printed by patch-hermes-cli-quiet-metrics.py.
  *
  * Prompt body: hermes-default-prompt-inner.txt (same directory as this script, or /tmp in Docker).
  */
@@ -142,6 +144,66 @@ if (text.includes(USERENV_ASSIGN_MARKER)) {
 } else {
   console.error("apply-hermes-execute-patches: userEnv block not found — adapter execute.js changed; update patch");
   process.exit(1);
+}
+
+const PARSE_MODEL_BLOCK = `    if (costMatch?.[1]) {
+        result.costUsd = parseFloat(costMatch[1]);
+    }
+    const PAPERCLIP_MODEL_REGEX = /^paperclip_model:\\s*(.+)$/m;
+    const pcm = combined.match(PAPERCLIP_MODEL_REGEX);
+    if (pcm?.[1]) {
+        result.resolvedModel = pcm[1].trim();
+    }
+    // Check for error patterns in stderr`;
+
+if (!text.includes("PAPERCLIP_MODEL_REGEX")) {
+  if (!text.includes('if (costMatch?.[1]) {\n        result.costUsd = parseFloat(costMatch[1]);\n    }\n    // Check for error patterns in stderr')) {
+    console.error("apply-hermes-execute-patches: costMatch block not found — cannot insert model parse");
+    process.exit(1);
+  }
+  text = text.replace(
+    `    if (costMatch?.[1]) {\n        result.costUsd = parseFloat(costMatch[1]);\n    }\n    // Check for error patterns in stderr`,
+    PARSE_MODEL_BLOCK,
+  );
+  changed = true;
+  console.log("apply-hermes-execute-patches: parse paperclip_model from Hermes output");
+} else {
+  console.log("apply-hermes-execute-patches: paperclip_model parse already applied");
+}
+
+const ER_MODEL_OLD = `        provider: provider || null,
+        model: model || null,
+    };`;
+const ER_MODEL_NEW = `        provider: provider || null,
+        model: parsed.resolvedModel || model || null,
+    };`;
+if (text.includes(ER_MODEL_OLD) && !text.includes("parsed.resolvedModel || model")) {
+  text = text.replace(ER_MODEL_OLD, ER_MODEL_NEW);
+  changed = true;
+  console.log("apply-hermes-execute-patches: executionResult.model prefers Hermes-reported model");
+} else if (text.includes("parsed.resolvedModel || model")) {
+  console.log("apply-hermes-execute-patches: executionResult model merge already applied");
+}
+
+const RJ_OLD = `    executionResult.resultJson = {
+        result: parsed.response || "",
+        session_id: parsed.sessionId || null,
+        usage: parsed.usage || null,
+        cost_usd: parsed.costUsd ?? null,
+    };`;
+const RJ_NEW = `    executionResult.resultJson = {
+        result: parsed.response || "",
+        session_id: parsed.sessionId || null,
+        usage: parsed.usage || null,
+        cost_usd: parsed.costUsd ?? null,
+        model: parsed.resolvedModel || model || null,
+    };`;
+if (text.includes(RJ_OLD)) {
+  text = text.replace(RJ_OLD, RJ_NEW);
+  changed = true;
+  console.log("apply-hermes-execute-patches: resultJson includes model");
+} else if (text.includes("cost_usd: parsed.costUsd ?? null,\n        model:")) {
+  console.log("apply-hermes-execute-patches: resultJson model already applied");
 }
 
 if (!text.includes("delete env.PAPERCLIP_AGENT_JWT_SECRET")) {

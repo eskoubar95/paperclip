@@ -21,10 +21,12 @@ RUN apt-get update \
 # Minimal extras: terminal/file-style tools without heavy optional stacks. Pin tag for reproducible builds.
 # Local quick check (saves waiting on full Paperclip build): docker build --target base -t pc-base .
 ARG HERMES_GIT_REF=v2026.4.8
+COPY server-patches/patch-hermes-cli-quiet-metrics.py /tmp/patch-hermes-cli-quiet-metrics.py
 RUN python3 -m venv /opt/hermes-venv \
  && /opt/hermes-venv/bin/pip install --no-cache-dir --upgrade pip setuptools wheel \
  && /opt/hermes-venv/bin/pip install --no-cache-dir \
     "hermes-agent[cli,pty,mcp,cron] @ git+https://github.com/NousResearch/hermes-agent.git@${HERMES_GIT_REF}" \
+ && /opt/hermes-venv/bin/python /tmp/patch-hermes-cli-quiet-metrics.py \
  && ln -sf /opt/hermes-venv/bin/hermes /usr/local/bin/hermes \
  && test -x /usr/local/bin/hermes
 
