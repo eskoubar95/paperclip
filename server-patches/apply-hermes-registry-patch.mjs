@@ -7,7 +7,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const root = "/app";
+const root = process.argv[2] || "/app";
 const registryPath = path.join(root, "server/src/adapters/registry.ts");
 let text = fs.readFileSync(registryPath, "utf8");
 
@@ -33,6 +33,9 @@ const adapterOld = `const hermesLocalAdapter: ServerAdapterModule = {
   syncSkills: hermesSyncSkills,
   models: hermesModels,
   supportsLocalAgentJwt: true,
+  supportsInstructionsBundle: true,
+  instructionsPathKey: "instructionsFilePath",
+  requiresMaterializedRuntimeSkills: false,
   agentConfigurationDoc: hermesAgentConfigurationDoc,
   detectModel: () => detectModelFromHermes(),
 };`;
@@ -46,6 +49,9 @@ const adapterNew = `const hermesLocalAdapter: ServerAdapterModule = {
   syncSkills: hermesSyncSkills,
   models: HERMES_OPENROUTER_MODELS,
   supportsLocalAgentJwt: true,
+  supportsInstructionsBundle: true,
+  instructionsPathKey: "instructionsFilePath",
+  requiresMaterializedRuntimeSkills: false,
   agentConfigurationDoc: hermesAgentConfigurationDoc,
   detectModel: () => detectModelFromHermes(),
   getConfigSchema: getHermesLocalConfigSchema,
