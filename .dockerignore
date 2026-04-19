@@ -1,4 +1,4 @@
-# Build clones paperclip from GitHub; keep local context tiny.
+# Build copies ./paperclip (submodule); keep context lean.
 .git
 *.md
 .DS_Store

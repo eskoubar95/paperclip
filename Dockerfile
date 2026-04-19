@@ -34,14 +34,10 @@ RUN usermod -u $USER_UID --non-unique node \
  && groupmod -g $USER_GID --non-unique node \
  && usermod -g $USER_GID -d /paperclip node
 
-FROM base AS upstream
-WORKDIR /src
-ARG PAPERCLIP_REF=master
-RUN git clone --depth 1 --branch "${PAPERCLIP_REF}" https://github.com/paperclipai/paperclip.git .
-
+# Paperclip source: use git submodule at ./paperclip (fork recommended). Build context must include it.
 FROM base AS deps
 WORKDIR /app
-COPY --from=upstream /src /app
+COPY paperclip /app
 # Curated OpenRouter models in the Model dropdown + getConfigSchema (provider / max turns).
 COPY server-patches/hermes-openrouter-models.ts /app/server/src/adapters/hermes-openrouter-models.ts
 COPY server-patches/apply-hermes-registry-patch.mjs /tmp/apply-hermes-registry-patch.mjs
@@ -59,6 +55,7 @@ WORKDIR /app
 COPY --from=deps /app /app
 RUN pnpm --filter @paperclipai/ui build
 RUN pnpm --filter @paperclipai/plugin-sdk build
+RUN pnpm --filter @paperclipai/plugin-paperclip-slack build
 RUN pnpm --filter @paperclipai/server build
 RUN test -f server/dist/index.js || (echo "ERROR: server build output missing" && exit 1)
 
@@ -67,6 +64,9 @@ ARG USER_UID=1000
 ARG USER_GID=1000
 WORKDIR /app
 COPY --chown=node:node --from=build /app /app
+RUN mkdir -p /paperclip/.paperclip/plugins \
+ && cp -a /app/packages/plugins/paperclip-slack /paperclip/.paperclip/plugins/paperclip-slack \
+ && chown -R node:node /paperclip/.paperclip
 RUN npm install --global --omit=dev @anthropic-ai/claude-code@latest @openai/codex@latest opencode-ai \
  && mkdir -p /paperclip \
  && chown node:node /paperclip
