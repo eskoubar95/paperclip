@@ -50,6 +50,9 @@ RUN pnpm install --frozen-lockfile
 COPY server-patches/hermes-default-prompt-inner.txt /tmp/hermes-default-prompt-inner.txt
 COPY server-patches/apply-hermes-execute-patches.mjs /tmp/apply-hermes-execute-patches.mjs
 RUN node /tmp/apply-hermes-execute-patches.mjs
+# Include references/, scripts/, assets/ when SKILL.md is at import root (dirname ".").
+COPY server-patches/apply-company-skills-package-root-patch.mjs /tmp/apply-company-skills-package-root-patch.mjs
+RUN node /tmp/apply-company-skills-package-root-patch.mjs
 
 FROM base AS build
 WORKDIR /app
