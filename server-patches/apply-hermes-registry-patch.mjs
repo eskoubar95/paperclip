@@ -1,28 +1,36 @@
 #!/usr/bin/env node
 /**
- * Patches server/src/adapters/registry.ts after cloning upstream Paperclip:
- * - Import HERMES_OPENROUTER_MODELS, getHermesLocalConfigSchema, hermesAgentConfigurationDoc
- * - Wire hermes_local adapter models + getConfigSchema + extended agent docs (API key auth)
+ * Patches server/src/adapters/registry.ts after Paperclip source is available:
+ * - Swap hermes-paperclip-adapter model/doc import for OpenRouter helpers from hermes-openrouter-models.js
+ * - Wire hermes_local adapter models + getConfigSchema + extended agent docs
+ *
+ * Upstream registry layout changed (split imports); this script matches current paperclip `registry.ts`.
  */
 import fs from "node:fs";
 import path from "node:path";
 
 const root = process.argv[2] || "/app";
 const registryPath = path.join(root, "server/src/adapters/registry.ts");
+if (!fs.existsSync(registryPath)) {
+  console.error("apply-hermes-registry-patch: missing", registryPath);
+  process.exit(1);
+}
 let text = fs.readFileSync(registryPath, "utf8");
 
-const importOld = `import {
+const importDocOld = `import {
   agentConfigurationDoc as hermesAgentConfigurationDoc,
   models as hermesModels,
 } from "hermes-paperclip-adapter";`;
 
-const importNew = `import { HERMES_OPENROUTER_MODELS, getHermesLocalConfigSchema, hermesAgentConfigurationDoc } from "./hermes-openrouter-models.js";`;
+const importDocNew = `import { HERMES_OPENROUTER_MODELS, getHermesLocalConfigSchema, hermesAgentConfigurationDoc } from "./hermes-openrouter-models.js";`;
 
-if (!text.includes(importOld)) {
-  console.error("apply-hermes-registry-patch: expected hermes import block not found — update patch script for upstream registry.ts");
+if (!text.includes(importDocOld)) {
+  console.error(
+    "apply-hermes-registry-patch: expected hermes doc/models import not found — update patch script for upstream registry.ts",
+  );
   process.exit(1);
 }
-text = text.replace(importOld, importNew);
+text = text.replace(importDocOld, importDocNew);
 
 const adapterOld = `const hermesLocalAdapter: ServerAdapterModule = {
   type: "hermes_local",

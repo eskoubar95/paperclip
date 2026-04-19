@@ -34,10 +34,16 @@ RUN usermod -u $USER_UID --non-unique node \
  && groupmod -g $USER_GID --non-unique node \
  && usermod -g $USER_GID -d /paperclip node
 
-# Paperclip source: use git submodule at ./paperclip (fork recommended). Build context must include it.
+# Paperclip source: clone fork at a fixed ref. Railway (and some CI) do not ship git submodule contents in the
+# Docker build context, so COPY paperclip would be empty — use git clone instead. Override via build args when bumping.
 FROM base AS deps
 WORKDIR /app
-COPY paperclip /app
+ARG PAPERCLIP_GIT_URL=https://github.com/eskoubar95/paperclip-core.git
+ARG PAPERCLIP_GIT_REF=14d6e87e4b82338d2cef92683a041adbc141bd03
+RUN rm -rf /app \
+ && git clone "${PAPERCLIP_GIT_URL}" /app \
+ && cd /app \
+ && git checkout -q "${PAPERCLIP_GIT_REF}"
 # Curated OpenRouter models in the Model dropdown + getConfigSchema (provider / max turns).
 COPY server-patches/hermes-openrouter-models.ts /app/server/src/adapters/hermes-openrouter-models.ts
 COPY server-patches/apply-hermes-registry-patch.mjs /tmp/apply-hermes-registry-patch.mjs

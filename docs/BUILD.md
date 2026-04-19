@@ -3,7 +3,7 @@
 ## Layout
 
 - **`paperclip/`** — full [Paperclip](https://github.com/paperclipai/paperclip) monorepo (use your **fork** as the remote so you can push core changes: avatar upload, Slack plugin, Hermes tweaks).
-- **Docker** — [Dockerfile](../Dockerfile) expects `paperclip/` in the build context and copies it with `COPY paperclip /app` (no `git clone` inside the image).
+- **Docker** — [Dockerfile](../Dockerfile) **clones** your fork (`PAPERCLIP_GIT_URL` / `PAPERCLIP_GIT_REF`) into `/app`. Railway does not include git submodule files in the Docker build context, so cloning inside the image avoids empty `paperclip/` and missing `server/src/adapters/registry.ts`.
 
 ## Git submodule (recommended)
 
@@ -32,7 +32,11 @@ git commit -m "Bump paperclip submodule"
 docker build -t paperclip-custom .
 ```
 
-CI must run `git submodule update --init --recursive` before `docker build` so `paperclip/` is populated.
+Default build args pin `paperclip-core` to a commit SHA. After you bump the `paperclip/` submodule locally, update **`PAPERCLIP_GIT_REF`** in the Dockerfile (or pass `--build-arg PAPERCLIP_GIT_REF=$(cd paperclip && git rev-parse HEAD)`).
+
+### Railway
+
+Use the Dockerfile defaults, or set **Docker Build Args** on the service: `PAPERCLIP_GIT_URL`, `PAPERCLIP_GIT_REF` (full SHA from `git submodule status paperclip`). No separate submodule checkout is required on Railway for the image build.
 
 ## Slack plugin
 
