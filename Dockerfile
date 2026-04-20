@@ -38,7 +38,7 @@ RUN usermod -u $USER_UID --non-unique node \
 # Docker build context, so COPY paperclip would be empty — use git clone instead. Override via build args when bumping.
 FROM base AS deps
 ARG PAPERCLIP_GIT_URL=https://github.com/eskoubar95/paperclip-core.git
-ARG PAPERCLIP_GIT_REF=4fbbc22f9fea68e98da15efa7bd2c064052093ee
+ARG PAPERCLIP_GIT_REF=370fc45340ed32d8ea2d5899d85441b916db1f11
 # Do not `rm -rf /app` while WORKDIR is /app — git fails with "Unable to read current working directory".
 WORKDIR /tmp
 RUN rm -rf /app /tmp/paperclip-src \
