@@ -42,10 +42,23 @@ terminal:
     - PAPERCLIP_COMPANY_ID
     - PAPERCLIP_RUN_ID
     - OPENROUTER_API_KEY
+    - GH_TOKEN
+    - GITHUB_TOKEN
 HERMESYAML
   if [ "$(id -u)" = "0" ]; then
     chown node:node /paperclip/.hermes/config.yaml
   fi
+fi
+
+# Private GitHub over HTTPS: git clone in Paperclip (managed workspace) and agent terminals
+# need a credential. Set GH_TOKEN or GITHUB_TOKEN in Railway to a fine-grained PAT (repo read/write
+# for the target repos). Do not put the token in the workspace repoUrl in the UI.
+if [ -n "${GH_TOKEN:-}" ] || [ -n "${GITHUB_TOKEN:-}" ]; then
+  _GH_FOR_GIT="${GH_TOKEN:-$GITHUB_TOKEN}"
+  HOME=/paperclip gosu node git config --global \
+    "url.https://x-access-token:${_GH_FOR_GIT}@github.com/.insteadOf" \
+    "https://github.com/" \
+    || true
 fi
 
 exec gosu node "$@"
