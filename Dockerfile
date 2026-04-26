@@ -22,13 +22,24 @@ RUN apt-get update \
 # Local quick check (saves waiting on full Paperclip build): docker build --target base -t pc-base .
 ARG HERMES_GIT_REF=v2026.4.8
 COPY server-patches/patch-hermes-cli-quiet-metrics.py /tmp/patch-hermes-cli-quiet-metrics.py
+COPY server-patches/patch-hermes-cli-provider-custom-choices.py /tmp/patch-hermes-cli-provider-custom-choices.py
 RUN python3 -m venv /opt/hermes-venv \
  && /opt/hermes-venv/bin/pip install --no-cache-dir --upgrade pip setuptools wheel \
  && /opt/hermes-venv/bin/pip install --no-cache-dir \
     "hermes-agent[cli,pty,mcp,cron] @ git+https://github.com/NousResearch/hermes-agent.git@${HERMES_GIT_REF}" \
  && /opt/hermes-venv/bin/python /tmp/patch-hermes-cli-quiet-metrics.py \
+ && /opt/hermes-venv/bin/python /tmp/patch-hermes-cli-provider-custom-choices.py \
  && ln -sf /opt/hermes-venv/bin/hermes /usr/local/bin/hermes \
  && test -x /usr/local/bin/hermes
+
+# Cursor Agent CLI — install *before* `usermod ... -d /paperclip` so the official installer
+# (which uses passwd home) writes to /home/node, not /paperclip. The local Windows launcher
+# mounts a named volume on /paperclip at runtime, which would hide ~/.local if home were already /paperclip.
+# https://cursor.com/docs/cli/installation
+RUN su -s /bin/bash node -c 'curl https://cursor.com/install -fsS | bash' \
+ && test -x /home/node/.local/bin/agent \
+ && ln -sf /home/node/.local/bin/agent /usr/local/bin/agent \
+ && /usr/local/bin/agent --version
 
 RUN usermod -u $USER_UID --non-unique node \
  && groupmod -g $USER_GID --non-unique node \
@@ -39,7 +50,7 @@ RUN usermod -u $USER_UID --non-unique node \
 FROM base AS deps
 ARG PAPERCLIP_GIT_URL=https://github.com/eskoubar95/paperclip-core.git
 # Pin matches paperclip/ submodule. Includes upstream v2026.416.0 (MCP: packages/mcp-server) + fork commits.
-ARG PAPERCLIP_GIT_REF=370fc45340ed32d8ea2d5899d85441b916db1f11
+ARG PAPERCLIP_GIT_REF=1f874a5e9253c94e5a5723561148a6ddecb66c68
 # Do not `rm -rf /app` while WORKDIR is /app — git fails with "Unable to read current working directory".
 WORKDIR /tmp
 RUN rm -rf /app /tmp/paperclip-src \
@@ -98,7 +109,7 @@ ENV NODE_ENV=production \
  PAPERCLIP_DEPLOYMENT_MODE=authenticated \
  PAPERCLIP_DEPLOYMENT_EXPOSURE=private \
  OPENCODE_ALLOW_ALL_MODELS=true \
- PATH=/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin
+ PATH=/paperclip/.local/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin
 
 EXPOSE 3100
 
