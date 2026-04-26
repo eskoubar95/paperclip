@@ -357,6 +357,8 @@ try {
     "--restart", "unless-stopped",
     "--name", $ContainerName,
     "-p", "3100:3100",
+    "-e", "PAPERCLIP_DEPLOYMENT_MODE=local_trusted",
+    "-e", "PAPERCLIP_DEPLOYMENT_EXPOSURE=private",
     "-e", "DATABASE_URL=$DatabaseUrl",
     "-e", "BETTER_AUTH_SECRET=$BetterAuthSecret",
     "-e", "PAPERCLIP_PUBLIC_URL=http://localhost:3100",
