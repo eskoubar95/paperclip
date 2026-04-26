@@ -1,0 +1,2 @@
+# Shell scripts in Docker must use LF; CRLF breaks Linux shebang (exec: no such file)
+*.sh text eol=lf

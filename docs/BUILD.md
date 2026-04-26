@@ -1,9 +1,30 @@
 # Build Paperclip from this repository
 
+For **local Cursor vs server Hermes** routing, **local Hermes + Ollama (qwen3:8b)**, and **Paperclip shared knowledge** (cross-adapter run summaries), see [`paperclip/docs/LOCAL_SERVER_SHARED_KNOWLEDGE.md`](./paperclip/docs/LOCAL_SERVER_SHARED_KNOWLEDGE.md) when the submodule is checked out.
+
 ## Layout
 
 - **`paperclip/`** — full [Paperclip](https://github.com/paperclipai/paperclip) monorepo (use your **fork** as the remote so you can push core changes: avatar upload, Slack plugin, Hermes tweaks).
 - **Docker** — [Dockerfile](../Dockerfile) **clones** your fork (`PAPERCLIP_GIT_URL` / `PAPERCLIP_GIT_REF`) into `/app`. Railway does not include git submodule files in the Docker build context, so cloning inside the image avoids empty `paperclip/` and missing `server/src/adapters/registry.ts`.
+
+## One source of truth (stop branch / image / docs drift)
+
+You will see **different UI, APIs, and “missing” docs** when these diverge:
+
+| What you do | Drives what |
+|------------|------------|
+| `paperclip/` submodule **commit checked out** on disk | `pnpm dev`, tests, what Cursor opens |
+| **`PAPERCLIP_GIT_REF`** in [Dockerfile](../Dockerfile) (or Railway build args) | The **web UI + server** inside the Docker image (not your uncommitted or other-branch work) |
+| Docs under `paperclip/docs/` in that same commit | What matches the code that ships when the ref is bumped |
+
+**Recommended workflow to keep it aligned**
+
+1. Merge your feature work to **`main`** (or the single integration branch you deploy from) on **your fork** (`paperclip-core` / `paperclip`).
+2. In the **parent** repo, `cd paperclip && git fetch && git checkout main && git pull` so the **submodule** points at that commit.
+3. Set **`PAPERCLIP_GIT_REF`** in the parent `Dockerfile` to **`$(cd paperclip && git rev-parse HEAD)`** (or paste that SHA) and commit. Match **Railway** “Docker build args” if you override there.
+4. Rebuild the image and redeploy. The browser then matches the same commit as `main` and the in-repo docs.
+
+**Product / orchestration / governance docs** in the checked-out submodule (examples: [`paperclip/docs/PROJECT_ORCHESTRATION.md`](../paperclip/docs/PROJECT_ORCHESTRATION.md), [`paperclip/docs/AGENT_HANDOFF_PROJECT_GOVERNANCE_V1.md`](../paperclip/docs/AGENT_HANDOFF_PROJECT_GOVERNANCE_V1.md)) only “exist” in tools and for readers when the workspace (and Docker ref) is on a commit that actually contains those files. External tools (e.g. Notion) are optional; the **repo** should stay the canonical copy once you finish an integration on `main` and bump the ref.
 
 ## Git submodule (recommended)
 
