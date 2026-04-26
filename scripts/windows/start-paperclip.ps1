@@ -352,12 +352,16 @@ try {
   Show-Toast -Title $AppName -Body "Starting local container..."
   # Bind-mount Windows instance dir so .env, config.json, and data match `pnpm dev`; Railway DATABASE_URL applies.
   $mountSource = (Resolve-Path -LiteralPath $InstanceDefaultRoot).Path
+  # Instance `config.json` on disk often has server.deploymentMode=local_trusted (for `pnpm dev`). That mode
+  # is wrong inside Docker: it enables the Board/local-board user and "LOCAL" UI, and is incompatible with
+  # port publish (local_trusted also requires loopback bind). **Override in the container** so the same
+  # DATABASE_URL from .env targets your Railway/remote Postgres with normal sign-in (authenticated + private).
   $dockerRun = @(
     "run", "-d",
     "--restart", "unless-stopped",
     "--name", $ContainerName,
     "-p", "3100:3100",
-    "-e", "PAPERCLIP_DEPLOYMENT_MODE=local_trusted",
+    "-e", "PAPERCLIP_DEPLOYMENT_MODE=authenticated",
     "-e", "PAPERCLIP_DEPLOYMENT_EXPOSURE=private",
     "-e", "DATABASE_URL=$DatabaseUrl",
     "-e", "BETTER_AUTH_SECRET=$BetterAuthSecret",

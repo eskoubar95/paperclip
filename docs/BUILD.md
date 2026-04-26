@@ -59,6 +59,40 @@ Default build args pin `paperclip-core` to a commit SHA. After you bump the `pap
 
 Use the Dockerfile defaults, or set **Docker Build Args** on the service: `PAPERCLIP_GIT_URL`, `PAPERCLIP_GIT_REF` (full SHA from `git submodule status paperclip`). No separate submodule checkout is required on Railway for the image build.
 
+## Teams, instance config & Windows Docker (structured notes)
+
+Use this as a checklist so **local dev**, **Docker**, and **docs** stay aligned.
+
+### What belongs together (feature areas)
+
+| Area | Purpose |
+|------|--------|
+| **Instance config resolution** (`paperclip/server/src/paths.ts`, `paperclip/packages/db/src/runtime-config.ts`) | When `PAPERCLIP_INSTANCE_ID` is `default` and `~/.paperclip/instances/default/config.json` exists, that file wins over a monorepo `paperclip/.paperclip/config.json` found by walking up from `server/` cwd — so `DATABASE_URL` in the real instance `.env` is used under `pnpm dev`. |
+| **Windows launcher** ([`scripts/windows/start-paperclip.ps1`](../scripts/windows/start-paperclip.ps1)) | Mounts `%USERPROFILE%\.paperclip\instances\default` → `/paperclip/instances/default`, passes `DATABASE_URL` and sets **`PAPERCLIP_DEPLOYMENT_MODE=authenticated`** and **`PAPERCLIP_DEPLOYMENT_EXPOSURE=private`** so the container does **not** inherit `local_trusted` from the mounted `config.json` (which would show Board / LOCAL and break port publish if you forced `local_trusted`). |
+| **Teams – API** | `GET /api/companies/:companyId/team-memberships/by-agent` returns all active agent↔team rows for the company (one call for org chart + agent header). |
+| **Teams – UI** | Company **Settings → Teams**: add agent by **dropdown** (not raw UUID). **Agent** profile header and **Org chart** cards show **team badges**; membership changes invalidate the affiliations query. |
+
+### When you must rebuild the Docker image
+
+The image **never** contains uncommitted edits in `paperclip/`. It only contains the commit pinned by **`PAPERCLIP_GIT_REF`** on **`PAPERCLIP_GIT_URL`** (see [Dockerfile](../Dockerfile)).
+
+1. **Commit and push** your `paperclip` fork so the SHA exists on the remote.
+2. Set **`PAPERCLIP_GIT_REF`** in the parent [Dockerfile](../Dockerfile) to that SHA (or pass `--build-arg PAPERCLIP_GIT_REF=<sha>`).
+3. **`docker build -t paperclip-local .`** from the **parent** repo root.
+4. Run **[`scripts/windows/start-paperclip.ps1`](../scripts/windows/start-paperclip.ps1)** to recreate the container (or your usual deploy).
+
+Until you do this, **`pnpm dev`** reflects your working tree; **Docker** reflects the last pinned remote commit only.
+
+### Quick commands (parent repo root)
+
+```bash
+# After push: pin the same commit as your submodule
+docker build -t paperclip-local --build-arg PAPERCLIP_GIT_REF="$(cd paperclip && git rev-parse HEAD)" .
+
+# Or edit Dockerfile PAPERCLIP_GIT_REF, then:
+docker build -t paperclip-local .
+```
+
 ## Slack plugin
 
 The Slack integration lives at [`paperclip/packages/plugins/paperclip-slack`](../paperclip/packages/plugins/paperclip-slack). The production image copies the built package to `$HOME/.paperclip/plugins/paperclip-slack` (`HOME=/paperclip`) so the host discovers it on startup.
