@@ -1,0 +1,38 @@
+---
+description: Monorepo layout, Docker vs submodule, env, and Windows — avoid drift
+alwaysApply: true
+---
+
+# Paperclip wrapper + `paperclip/` submodule
+
+## Two layers
+
+1. **Repo root (this workspace)** — Docker `Dockerfile`, `server-patches/`, `docs/BUILD.md`, `scripts/windows/start-paperclip.ps1`, `.gitattributes` for `*.sh` (LF). Not the app source of truth for feature work.
+2. **`paperclip/` git submodule** — the Paperclip monorepo (server, ui, packages). Feature work, migrations, and PRs live **here** unless the task is explicitly Docker/patch-only.
+
+## Docker build does not see your working tree
+
+The `Dockerfile` **clones** `PAPERCLIP_GIT_URL` and checks out **`PAPERCLIP_GIT_REF` (full SHA)**. Uncommitted changes in `paperclip/` are **not** in the image. After integrating features:
+
+1. Commit and **push** in `paperclip/` (fork on GitHub).
+2. Bump **`PAPERCLIP_GIT_REF`** in the root `Dockerfile` to that commit (or run `scripts/sync-paperclip-docker-ref.ps1` from repo root after commit).
+3. Rebuild the image. See `docs/BUILD.md` (“One source of truth”).
+
+Railway must use the **same** `PAPERCLIP_GIT_REF` if build args override the Dockerfile.
+
+## Local config: instance `.env`
+
+On Windows, instance config is typically:
+
+`%USERPROFILE%\.paperclip\instances\default\.env`
+
+Put `DATABASE_URL` there for external Postgres (e.g. Railway). `pnpm dev` resolves this via `server` config loading (see `paperclip/server/src/config.ts`). **Plain `docker run` without a bind mount does not read that Windows file** — use `scripts/windows/start-paperclip.ps1`, which mounts the instance dir and passes `DATABASE_URL` from the file when present.
+
+## Shell scripts in git
+
+`*.sh` used in Linux containers must be **LF** only. Root `.gitattributes` enforces `eol=lf` for `*.sh`. CRLF causes `exec /entrypoint: no such file or directory` in Docker.
+
+## Where to read first
+
+- Wrapper / Docker / submodule bump: **`docs/BUILD.md`**
+- App development: **`paperclip/doc/DEVELOPING.md`**, **`paperclip/doc/DATABASE.md`**, **`paperclip/AGENTS.md`**
