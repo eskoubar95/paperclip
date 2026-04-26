@@ -7,8 +7,9 @@ This repository is a **wrapper** around the [`paperclip/`](./paperclip) git subm
 | Goal | Read first |
 |------|------------|
 | App features, API, UI, DB, tests | [`paperclip/AGENTS.md`](./paperclip/AGENTS.md), [`paperclip/doc/DEVELOPING.md`](./paperclip/doc/DEVELOPING.md) |
-| Docker image, Railway, submodule SHA, “why does prod look old?” | [`docs/BUILD.md`](./docs/BUILD.md) |
+| Docker image, `PAPERCLIP_GIT_REF`, Railway, “why does prod look old?” | [`docs/BUILD.md`](./docs/BUILD.md) — after **pushing** the fork, bump the ref: [`sync-paperclip-docker-ref.ps1`](./scripts/sync-paperclip-docker-ref.ps1) (Windows) or build-arg from `cd paperclip && git rev-parse HEAD` |
 | Local Docker on Windows + `DATABASE_URL` from your instance `.env` | [`scripts/windows/start-paperclip.ps1`](./scripts/windows/start-paperclip.ps1) (bind-mounts `%USERPROFILE%\.paperclip\instances\default`) |
+| Company Cursor MCP, connector auth, local sync | [`paperclip/doc/MCP-CONNECTORS.md`](./paperclip/doc/MCP-CONNECTORS.md) and [`scripts/windows/Sync-PaperclipMcp.ps1`](./scripts/windows/Sync-PaperclipMcp.ps1) |
 
 ## Golden rules
 

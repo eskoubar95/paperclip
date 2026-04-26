@@ -1,6 +1,7 @@
 #Requires -Version 5.1
 <#
   Fetches cursor-mcp.json bundle from Paperclip and writes $env:USERPROFILE\.cursor\mcp.json
+  (connector secrets must already be stored in the board; see paperclip/doc/MCP-CONNECTORS.md)
   Usage:
     $env:PAPERCLIP_API_URL = "http://127.0.0.1:3100"   # no trailing /api
     $env:PAPERCLIP_MCP_SYNC_TOKEN = "pcpmcp_...."

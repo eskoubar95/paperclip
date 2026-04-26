@@ -85,6 +85,13 @@ Until you do this, **`pnpm dev`** reflects your working tree; **Docker** reflect
 
 ### Quick commands (parent repo root)
 
+**Order matters:** the SHA must **already exist** on `PAPERCLIP_GIT_URL` (your fork on GitHub). If you set `PAPERCLIP_GIT_REF` to a commit you only have locally, `docker build` will fail at `git checkout` inside the image.
+
+1. In `paperclip/`: commit, **push** the branch to your fork.
+2. In the **parent** repo, pin that commit in the `Dockerfile` and rebuild.
+
+**Linux / macOS / Git Bash**
+
 ```bash
 # After push: pin the same commit as your submodule
 docker build -t paperclip-local --build-arg PAPERCLIP_GIT_REF="$(cd paperclip && git rev-parse HEAD)" .
@@ -92,6 +99,20 @@ docker build -t paperclip-local --build-arg PAPERCLIP_GIT_REF="$(cd paperclip &&
 # Or edit Dockerfile PAPERCLIP_GIT_REF, then:
 docker build -t paperclip-local .
 ```
+
+**Windows (PowerShell, repo root)** — same steps; use the helper to rewrite `PAPERCLIP_GIT_REF` to the current `paperclip/` submodule `HEAD`:
+
+```powershell
+cd paperclip
+git status   # ensure committed; push to fork before the next step
+cd ..
+.\scripts\sync-paperclip-docker-ref.ps1   # sets Dockerfile ARG to (git -C paperclip rev-parse HEAD)
+git add Dockerfile
+git commit -m "Bump PAPERCLIP_GIT_REF for Docker image"
+docker build -t paperclip-local .
+```
+
+The script warns if `paperclip/` has **uncommitted** changes (that commit is not what Docker will use until you commit and use that SHA on the **remote**).
 
 ## Slack plugin
 
