@@ -51,7 +51,7 @@ FROM base AS deps
 ARG PAPERCLIP_GIT_URL=https://github.com/eskoubar95/paperclip-core.git
 # Must be a ref that exists on PAPERCLIP_GIT_URL. After merging app changes, bump to match: `cd paperclip && git rev-parse HEAD`
 # (uncommitted work in `paperclip/` is not in the image until it is on the remote and this ref is updated).
-ARG PAPERCLIP_GIT_REF=f133a8b8b77c7658a12abef27c0b83ec0565e914
+ARG PAPERCLIP_GIT_REF=3065c2e347ba48e1351116a7cb8d9301333ba219
 # Do not `rm -rf /app` while WORKDIR is /app — git fails with "Unable to read current working directory".
 WORKDIR /tmp
 RUN rm -rf /app /tmp/paperclip-src \
