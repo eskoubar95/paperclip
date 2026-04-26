@@ -50,7 +50,7 @@ RUN usermod -u $USER_UID --non-unique node \
 FROM base AS deps
 ARG PAPERCLIP_GIT_URL=https://github.com/eskoubar95/paperclip-core.git
 # Pin matches paperclip/ submodule at parent commit. Bump after merging in paperclip fork (see docs/BUILD.md).
-ARG PAPERCLIP_GIT_REF=dd9bf711f7e666ae3c1437fdc7ff37896157df1e
+ARG PAPERCLIP_GIT_REF=8d103e77fcdc09bea24a92f005cb3f7c25a03fb5
 # Do not `rm -rf /app` while WORKDIR is /app — git fails with "Unable to read current working directory".
 WORKDIR /tmp
 RUN rm -rf /app /tmp/paperclip-src \
