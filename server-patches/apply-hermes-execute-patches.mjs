@@ -8,6 +8,8 @@
  * 5) delete env.PAPERCLIP_AGENT_JWT_SECRET before spawning Hermes.
  * 6) Extend parseHermesOutput: read paperclip_model line (from patched Hermes CLI) for actual model id;
  *    keep token/cost regexes compatible with quiet-mode footer printed by patch-hermes-cli-quiet-metrics.py.
+ * 7) If Hermes --resume fails with "Session not found" (stale task session after rebuild), retry without
+ *    --resume; on repeated failure return clearSession so Paperclip clears agentTaskSessions.
  *
  * Prompt body: hermes-default-prompt-inner.txt (same directory as this script, or /tmp in Docker).
  */
@@ -206,6 +208,87 @@ if (text.includes(RJ_OLD)) {
   console.log("apply-hermes-execute-patches: resultJson model already applied");
 }
 
+const PROMPT_BUILD_LINE = "    const prompt = buildPrompt(ctx, config);";
+const PROMPT_BUILD_REPLACEMENT = `    const prompt = (() => {
+        const base = buildPrompt(ctx, config);
+        const shared = ctx.context && typeof ctx.context.paperclipSharedKnowledge === "string"
+            ? ctx.context.paperclipSharedKnowledge.trim()
+            : "";
+        if (!shared)
+            return base;
+        return \`\${base}\\n\\n## Paperclip shared knowledge (cross-adapter / prior runs)\\n\\n\${shared}\\n\`;
+    })();`;
+
+if (text.includes(PROMPT_BUILD_LINE) && !text.includes("ctx.context.paperclipSharedKnowledge")) {
+  text = text.replace(PROMPT_BUILD_LINE, PROMPT_BUILD_REPLACEMENT);
+  changed = true;
+  console.log("apply-hermes-execute-patches: append Paperclip shared knowledge to Hermes prompt");
+} else if (text.includes("ctx.context.paperclipSharedKnowledge")) {
+  console.log("apply-hermes-execute-patches: shared knowledge prompt merge already applied");
+} else {
+  console.warn("apply-hermes-execute-patches: buildPrompt line not found — shared knowledge not merged");
+}
+
+/** Allow `custom` (local OpenAI-compatible / Ollama) even though it is not in npm VALID_PROVIDERS. */
+const PROVIDER_CHECK_OLD = `    if (provider && VALID_PROVIDERS.includes(provider)) {
+        args.push("--provider", provider);
+    }`;
+const PROVIDER_CHECK_NEW = `    if (provider && (VALID_PROVIDERS.includes(provider) || provider === "custom")) {
+        args.push("--provider", provider);
+    }`;
+if (text.includes(PROVIDER_CHECK_OLD) && !text.includes('provider === "custom"')) {
+  text = text.replace(PROVIDER_CHECK_OLD, PROVIDER_CHECK_NEW);
+  changed = true;
+  console.log("apply-hermes-execute-patches: allow hermes --provider custom (local Ollama)");
+} else if (text.includes('provider === "custom"') && text.includes("VALID_PROVIDERS.includes(provider)")) {
+  console.log("apply-hermes-execute-patches: custom provider patch already applied");
+} else {
+  console.warn("apply-hermes-execute-patches: provider check block not found — local Ollama may not get --provider custom");
+}
+
+/** Prior patch only set OPENAI_BASE_URL; Hermes needs OPENROUTER_BASE_URL for custom base URL resolution. */
+const OLLAMA_ENV_OLD = `        if (openaiBase) {
+            env.OPENAI_BASE_URL = openaiBase;
+        }`;
+const OLLAMA_ENV_NEW = `        if (openaiBase) {
+            env.OPENAI_BASE_URL = openaiBase;
+            // Hermes resolve_runtime_provider ignores OPENAI_BASE_URL for --provider custom; it uses
+            // OPENROUTER_BASE_URL / config.yaml. Without this, base_url falls back to OpenRouter and the
+            // CLI asks for OPENROUTER_API_KEY even for local Ollama.
+            env.OPENROUTER_BASE_URL = openaiBase;
+        }`;
+
+const CWD_BLOCK_MARKER = `    // ── Resolve working directory ──────────────────────────────────────────
+    const cwd = cfgString(config.cwd) || cfgString(ctx.config?.workspaceDir) || ".";`;
+const CWD_BLOCK_WITH_OLLAMA = `    if (provider === "custom") {
+        const openaiBase = cfgString(config.baseUrl) || cfgString(config.customBaseUrl);
+        if (openaiBase) {
+            env.OPENAI_BASE_URL = openaiBase;
+            // Hermes resolve_runtime_provider ignores OPENAI_BASE_URL for --provider custom; it uses
+            // OPENROUTER_BASE_URL / config.yaml. Without this, base_url falls back to OpenRouter and the
+            // CLI asks for OPENROUTER_API_KEY even for local Ollama.
+            env.OPENROUTER_BASE_URL = openaiBase;
+        }
+    }
+    // ── Resolve working directory ──────────────────────────────────────────
+    const cwd = cfgString(config.cwd) || cfgString(ctx.config?.workspaceDir) || ".";`;
+
+if (text.includes(OLLAMA_ENV_OLD) && !text.includes("env.OPENROUTER_BASE_URL = openaiBase")) {
+  text = text.replace(OLLAMA_ENV_OLD, OLLAMA_ENV_NEW);
+  changed = true;
+  console.log("apply-hermes-execute-patches: upgrade custom Ollama env: add OPENROUTER_BASE_URL");
+}
+
+if (text.includes(CWD_BLOCK_MARKER) && !text.includes("cfgString(config.baseUrl)")) {
+  text = text.replace(CWD_BLOCK_MARKER, CWD_BLOCK_WITH_OLLAMA);
+  changed = true;
+  console.log("apply-hermes-execute-patches: OPENAI_BASE_URL + OPENROUTER_BASE_URL for provider custom (Ollama)");
+} else if (text.includes("cfgString(config.baseUrl)")) {
+  console.log("apply-hermes-execute-patches: Ollama base URL injection already present");
+} else {
+  console.warn("apply-hermes-execute-patches: cwd block marker not found — cannot inject Ollama base URL env");
+}
+
 if (!text.includes("delete env.PAPERCLIP_AGENT_JWT_SECRET")) {
   if (!text.includes(RESOLVE_CWD_COMMENT)) {
     console.error("apply-hermes-execute-patches: Resolve working directory marker not found — cannot insert JWT strip");
@@ -216,6 +299,144 @@ if (!text.includes("delete env.PAPERCLIP_AGENT_JWT_SECRET")) {
   console.log("apply-hermes-execute-patches: strip PAPERCLIP_AGENT_JWT_SECRET from Hermes env");
 } else {
   console.log("apply-hermes-execute-patches: JWT strip already applied");
+}
+
+// ── 7) Retry without --resume when local Hermes has no such session; clearSession on still-fail ─────────
+const HERMES_SESSION_RETRY_MARK = "isHermesSessionNotFoundError";
+if (!text.includes(HERMES_SESSION_RETRY_MARK)) {
+  const PARSE_HERMES_END = `    return result;
+}
+// ---------------------------------------------------------------------------
+// Main execute
+// ---------------------------------------------------------------------------
+export async function execute(ctx) {`;
+  const PARSE_HERMES_END_WITH_DETECTOR = `    return result;
+}
+/** True when the Hermes child exited because --resume id is missing (new container / empty SessionDB). */
+function isHermesSessionNotFoundError(stdout, stderr) {
+    const combined = \`\${stdout || ""}\\n\${stderr || ""}\`;
+    return /Session not found\\s*:/i.test(combined);
+}
+// ---------------------------------------------------------------------------
+// Main execute
+// ---------------------------------------------------------------------------
+export async function execute(ctx) {`;
+  if (!text.includes(PARSE_HERMES_END)) {
+    console.error("apply-hermes-execute-patches: parseHermesOutput block end not found — cannot add session-retry");
+    process.exit(1);
+  }
+  text = text.replace(PARSE_HERMES_END, PARSE_HERMES_END_WITH_DETECTOR);
+  changed = true;
+  console.log("apply-hermes-execute-patches: add isHermesSessionNotFoundError helper");
+} else {
+  console.log("apply-hermes-execute-patches: session not found helper already present");
+}
+
+if (!text.includes("makeHermesArgs")) {
+  const SESSION_RESUME_OLD = `    args.push("--source", "tool");
+    // Session resume
+    const prevSessionId = cfgString(ctx.runtime?.sessionParams?.sessionId);
+    if (persistSession && prevSessionId) {
+        args.push("--resume", prevSessionId);
+    }
+    if (extraArgs?.length) {
+        args.push(...extraArgs);
+    }`;
+  const SESSION_RESUME_NEW = `    args.push("--source", "tool");
+    const prevSessionId = cfgString(ctx.runtime?.sessionParams?.sessionId);
+    const makeHermesArgs = (resumeId) => {
+        const a = args.slice();
+        if (persistSession && resumeId) {
+            a.push("--resume", resumeId);
+        }
+        if (extraArgs?.length) {
+            a.push(...extraArgs);
+        }
+        return a;
+    };
+    let hermesArgs = makeHermesArgs(prevSessionId);`;
+  if (!text.includes(SESSION_RESUME_OLD)) {
+    console.error("apply-hermes-execute-patches: expected session resume block not found — upstream execute.js changed");
+    process.exit(1);
+  }
+  text = text.replace(SESSION_RESUME_OLD, SESSION_RESUME_NEW);
+  changed = true;
+  console.log("apply-hermes-execute-patches: makeHermesArgs for resume + extraArgs");
+} else {
+  console.log("apply-hermes-execute-patches: makeHermesArgs already present");
+}
+
+if (!text.includes("retriedAfterMissingSession")) {
+  const RUN_CHILD_OLD = `    const result = await runChildProcess(ctx.runId, hermesCmd, args, {
+        cwd,
+        env,
+        timeoutSec,
+        graceSec,
+        onLog: wrappedOnLog,
+    });
+    // ── Parse output ───────────────────────────────────────────────────────
+    const parsed = parseHermesOutput(result.stdout || "", result.stderr || "");`;
+  const RUN_CHILD_NEW = `    let result = await runChildProcess(ctx.runId, hermesCmd, hermesArgs, {
+        cwd,
+        env,
+        timeoutSec,
+        graceSec,
+        onLog: wrappedOnLog,
+    });
+    let retriedAfterMissingSession = false;
+    if (prevSessionId &&
+        !result.timedOut &&
+        (result.exitCode ?? 0) !== 0 &&
+        isHermesSessionNotFoundError(result.stdout || "", result.stderr || "")) {
+        await ctx.onLog("stdout", \`[paperclip] Hermes resume session "\${prevSessionId}" is not in the local store; retrying without --resume.\\n\`);
+        retriedAfterMissingSession = true;
+        hermesArgs = makeHermesArgs(null);
+        result = await runChildProcess(ctx.runId, hermesCmd, hermesArgs, {
+            cwd,
+            env,
+            timeoutSec,
+            graceSec,
+            onLog: wrappedOnLog,
+        });
+    }
+    // ── Parse output ───────────────────────────────────────────────────────
+    const parsed = parseHermesOutput(result.stdout || "", result.stderr || "");`;
+  if (!text.includes(RUN_CHILD_OLD)) {
+    console.error("apply-hermes-execute-patches: runChildProcess block not found — upstream execute.js changed");
+    process.exit(1);
+  }
+  text = text.replace(RUN_CHILD_OLD, RUN_CHILD_NEW);
+  changed = true;
+  console.log("apply-hermes-execute-patches: retry without --resume on session not found");
+} else {
+  console.log("apply-hermes-execute-patches: session retry block already present");
+}
+
+if (text.includes("retriedAfterMissingSession") && !text.includes("executionResult.clearSession")) {
+  const RETURN_SESSION_OLD = `    if (persistSession && parsed.sessionId) {
+        executionResult.sessionParams = { sessionId: parsed.sessionId };
+        executionResult.sessionDisplayId = parsed.sessionId.slice(0, 16);
+    }
+    return executionResult;
+}`;
+  const RETURN_SESSION_NEW = `    if (persistSession && parsed.sessionId) {
+        executionResult.sessionParams = { sessionId: parsed.sessionId };
+        executionResult.sessionDisplayId = parsed.sessionId.slice(0, 16);
+    }
+    if (retriedAfterMissingSession && (result.exitCode ?? 0) !== 0) {
+        executionResult.clearSession = true;
+    }
+    return executionResult;
+}`;
+  if (!text.includes(RETURN_SESSION_OLD)) {
+    console.warn("apply-hermes-execute-patches: executionResult return block not found — clearSession not added");
+  } else {
+    text = text.replace(RETURN_SESSION_OLD, RETURN_SESSION_NEW);
+    changed = true;
+    console.log("apply-hermes-execute-patches: clearSession when retry still failed");
+  }
+} else if (text.includes("executionResult.clearSession")) {
+  console.log("apply-hermes-execute-patches: clearSession on stale session already present");
 }
 
 if (changed) {

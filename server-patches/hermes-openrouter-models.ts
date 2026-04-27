@@ -33,6 +33,13 @@ If piping is blocked by policy, write the body to a file (\`curl ... -o /tmp/pc.
 
 If you use a custom \`promptTemplate\`, keep the same rules: **Bearer + \`$PAPERCLIP_API_KEY\`** on all \`/api/\` requests, plus **\`x-paperclip-run-id: $PAPERCLIP_RUN_ID\`** on agent issue mutations.
 
+## Local Ollama (provider \`custom\`)
+
+- Set **Provider** to **Local Ollama (OpenAI-compatible)** and **Model** to \`qwen3:8b\` (or another tag pulled in Ollama).
+- Set **Ollama base URL (OpenAI-compatible)** to the API root, e.g. \`http://host.docker.internal:11434/v1\` when Paperclip runs in **Docker** on Windows and **Ollama** runs on the host. Use \`http://127.0.0.1:11434/v1\` for native/local Hermes on the same machine as Ollama.
+- **Toolsets:** for small local models, prefer a narrow set (e.g. \`web,file,terminal\`) before \`hermes-cli\` or \`all\` — vision/browser-heavy toolsets need cloud keys or stronger models.
+- Ensure the model is pulled: \`ollama pull qwen3:8b\`.
+
 ## Hermes toolsets (\`-t\` / \`toolsets\` in adapter config)
 
 Pass a **comma-separated** list of Hermes toolset names (see \`hermes chat --help\` and \`toolsets.py\` in Hermes). Special value **\`all\`** enables every registered toolset. **\`hermes-cli\`** is the bundled “full interactive CLI” set (terminal, file, web, browser, vision, skills, code execution, cronjob, etc.). MCP tools need \`mcp\` extra + \`mcp_servers\` in \`~/.hermes/config.yaml\`; names like \`mcp\`/\`creative\`/\`productivity\` in some docs are categories or plugins — use valid toolset names from Hermes or \`all\`.
@@ -56,6 +63,7 @@ export const HERMES_OPENROUTER_MODELS: AdapterModel[] = [
   { id: "perplexity/sonar", label: "Sonar" },
   { id: "perplexity/sonar-pro-search", label: "Sonar Pro Search" },
   { id: "deepseek/deepseek-v3.2", label: "DeepSeek V3.2" },
+  { id: "qwen3:8b", label: "Local Ollama: qwen3:8b" },
 ];
 
 /**
@@ -69,11 +77,12 @@ export function getHermesLocalConfigSchema(): AdapterConfigSchema {
         key: "provider",
         label: "Provider",
         type: "select",
-        hint: "Use OpenRouter with OPENROUTER_API_KEY (Railway env or ~/.hermes/.env).",
+        hint: "OpenRouter: set OPENROUTER_API_KEY. Local Ollama: set Provider to Local Ollama, Base URL, and model qwen3:8b.",
         default: "openrouter",
         options: [
           { label: "Auto (Hermes decides)", value: "auto" },
           { label: "OpenRouter", value: "openrouter" },
+          { label: "Local Ollama (OpenAI-compatible)", value: "custom" },
           { label: "Anthropic", value: "anthropic" },
           { label: "Nous", value: "nous" },
           { label: "OpenAI Codex", value: "openai-codex" },
@@ -85,6 +94,20 @@ export function getHermesLocalConfigSchema(): AdapterConfigSchema {
           { label: "Hugging Face", value: "huggingface" },
           { label: "Kilo Code", value: "kilocode" },
         ],
+      },
+      {
+        key: "baseUrl",
+        label: "Ollama base URL (OpenAI-compatible API root)",
+        type: "text",
+        default: "http://host.docker.internal:11434/v1",
+        hint: "When Paperclip runs in Docker on Windows, use host.docker.internal to reach Ollama on the host. Example: http://host.docker.internal:11434/v1. Native (no Docker): http://127.0.0.1:11434/v1. The adapter passes this to Hermes as OPENROUTER_BASE_URL (and OPENAI_BASE_URL); Hermes reads the former for custom OpenAI-compatible endpoints.",
+      },
+      {
+        key: "contextLength",
+        label: "Context length (Ollama / local, optional)",
+        type: "number",
+        default: 32768,
+        hint: "Optional. Some stacks use this for Ollama context hints; may be ignored depending on Hermes version.",
       },
       {
         key: "toolsets",
